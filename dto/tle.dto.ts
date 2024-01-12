@@ -1,21 +1,67 @@
-export class TLEDataDTO {
- 
+import { Tle, TleDocument } from '../schemas/tle.schema';
+import { IsString } from 'class-validator';
+import { Types } from 'mongoose';
+
+
+export class TleDto {
+  constructor(
+    tleModel:
+      | Tle
+      | (TleDocument & {
+          _id: Types.ObjectId;
+        }),
+  ) {
+    this.name = tleModel.objectName;
+    this.firstLine = tleModel.tleFirstLine;
+    this.secondLine = tleModel.tleSecondLine;
+  }
+
+  @IsString()
+  name: string;
+
+  @IsString()
+  firstLine: string;
+
+  @IsString()
+  secondLine: string;
+}
+
+export class TleGetDto {
+    date: Date;
     noradId: number;
     objectName: string;
-    line2: string;
-    line3: string;
-  
+    tleLine1: string;
+    tleLine2: string;
+    
+    
     constructor(line1: string, line2: string, line3: string) {
-      // Split the first line to extract the object name
-      const line1Parts = line1.trim().split(/\s+/); // Split by one or more spaces
-      this.objectName = line1Parts[1]; // Assuming the name is the first part
+      const line1Parts = line1.trim().split(/\s+/); 
+      this.objectName = line1Parts[1]; 
   
-      // Split the second line to extract the NORAD ID
       const line2Parts = line2.trim().split(/\s+/);
-      this.noradId = parseInt(line2Parts[1], 10); // Assuming the NORAD ID is the second part
+      this.noradId = parseInt(line2Parts[1], 10); 
   
-  
-      this.line2 = line2;
-      this.line3 = line3;
+      this.date = new Date(),
+      this.tleLine1 = line2;
+      this.tleLine2 = line3;
     }
+  }
+
+  export class TleFindDto {
+    constructor(
+      targetTleDate: Date,
+      foundTleDate: Date,
+      tleDtoarray: TleDto[],
+      numOfData?: number,
+    ) {
+      this.targetTleDate = targetTleDate;
+      this.foundTleDate = foundTleDate;
+      this.numOfData = numOfData;
+      this.tles = tleDtoarray;
+    }
+  
+    targetTleDate: Date;
+    foundTleDate: Date;
+    numOfData: number;
+    tles
   }
