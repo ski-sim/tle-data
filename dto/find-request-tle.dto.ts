@@ -9,7 +9,7 @@ export class TleFindPathReq {
   
     readonly chunk?: number;
   
-    readonly id?: number;
+    readonly noradId?: number;
   
-    readonly ids?: Array<number>;
+    readonly noradIds?: Array<number>;
   }

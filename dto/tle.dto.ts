@@ -36,7 +36,7 @@ export class TleGetDto {
     
     constructor(line1: string, line2: string, line3: string) {
       const line1Parts = line1.trim().split(/\s+/); 
-      this.objectName = line1Parts[1]; 
+      this.objectName = line1Parts[1]+' '+line1Parts[2]; 
   
       const line2Parts = line2.trim().split(/\s+/);
       this.noradId = parseInt(line2Parts[1], 10); 

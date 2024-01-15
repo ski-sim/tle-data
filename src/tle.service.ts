@@ -9,25 +9,15 @@ import { Tle, TleDocument} from '../schemas/tle.schema';
 
 @Injectable()
 export class TleService {
-
+  private dbUri: string;
   private dbClient: MongoClient;
 
   constructor(@InjectModel(Tle.name) private tleModel: Model<TleDocument>) {
-    this.dbClient = new MongoClient('mongodb://spacemap42:Voronoi1!@121.78.75.22:27017/?directConnection=true');
+    this.dbUri = 'mongodb://spacemap42:Voronoi1!@121.78.75.22:27017/?directConnection=true';
+    this.dbClient = new MongoClient(this.dbUri);
     
   }
 
-  async findTleForTargetNoradId(ids?: Array<number>): Promise<TleFindDto> {
-    const database = this.dbClient.db('kyuil-workspace');
-    const collection = database.collection('tle');
-    const tle = await this.tleModel.findOne({}).sort({ date: -1 }).exec();
-    const date = new Date(tle.creationDate);
-    const tles = await this.tleModel.find({ date, id: { $in: ids } }).exec();
-    const tleDtos = ids.map(
-      (id) => new TleDto(tles.filter((tle) => tle.id === id)[0]),
-    );
-    return new TleFindDto(date, date, tleDtos);
-  }
 
   async createTle(tleData: Tle): Promise<Tle> {
     const newTle = new this.tleModel(tleData);
@@ -125,59 +115,35 @@ export class TleService {
       console.error('Error inserting documents:', error.message);
     }
   }
-
-  getHello(): string {
-    return 'Hello World!';
-  }
-
   
-
-  // async findTleForTargetNoradId(noradId: string): Promise<Tle[]> {
-  //   try {
-  //     const noradIdNumber = parseInt(noradId, 10);
-  //     const foundTles = await this.tleModel.find({ noradId: noradIdNumber }).exec();
-      
-  //     // foundTles가 비어있는지 확인합니다.
-  //     if (!foundTles || foundTles.length === 0) {
-  //       // 적절한 처리를 수행합니다. 예를 들면:
-  //       // throw new NotFoundException(`TLE with noradId ${noradId} not found.`);
-  //       // 또는 빈 배열을 반환할 수도 있습니다.
-  //       return [];
-  //     }
-  
-  //     // 결과를 반환하기 전에 추가적인 처리를 할 수 있습니다.
-  //     return foundTles;
-  //   } catch (error) {
-  //     console.error('Error retrieving TLE data:', error.message);
-  //     // 오류 처리를 위해 예외를 던지거나, 빈 배열을 반환합니다.
-  //     throw error;
-  //   }
-  // }
-  async handleTleData(noradId: string) {
-    // 여기에 NORAD ID를 처리하는 로직 추가
-    // 예: 데이터베이스에서 해당 NORAD ID의 TLE 데이터 찾기
-    const tleData = await this.findTLEByNoradId(noradId);
-
-    // 필요한 경우 데이터베이스에 저장
-    if (tleData.length === 0) {
-      // 여기에 새로운 TLE 데이터를 데이터베이스에 저장하는 로직 추가
-    }
-
-    return tleData; // 처리된 TLE 데이터 반환
-  }
-  async findTLEByNoradId(noradId: string): Promise<Tle[]> {
+  async findTleByNoradId(noradId: string): Promise<Tle> {
     try {
-      
-      
-      const noradIdNumber = parseInt(noradId, 10);
-      const foundTles = await this.tleModel.find({ noradId: noradIdNumber }).exec();
-      console.log(foundTles); // 이제 여기서 바로 데이터를 볼 수 있습니다.
-      return foundTles;
+      const noradIdInt = parseInt(noradId,10);
+      const tleDocument = await this.tleModel.findOne({ noradId: noradIdInt }).exec();
+      if (!tleDocument) {
+        return null;
+      }
+      // Tle 스키마 형식으로 변환
+      console.log(tleDocument);
+
+      return tleDocument.toObject();
     } catch (error) {
-      console.error('Error retrieving TLE data:', error.message);
-      return [];
+      throw new Error(`Error while fetching TLE with noradId ${noradId}: ${error.message}`);
     }
   }
-
  
+  async findAllTles(): Promise<Tle[]> {
+    try {
+      console.log(`Connecting to DB at: ${this.dbUri}`); // MongoDB 연결 URI 로깅
+      await this.dbClient.connect();
+      console.log('Connected successfully to MongoDB');
+
+      const tles = await this.tleModel.find().exec();
+      console.log(`Found ${tles.length} TLEs`); // 조회된 TLE의 수 로깅
+      return tles;
+    } catch (error) {
+      console.error(`Error while fetching all TLEs: ${error.message}`);
+      throw new Error(`Error while fetching all TLEs: ${error.message}`);
+    }
+  }
 }
