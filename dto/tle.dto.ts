@@ -49,19 +49,31 @@ export class TleGetDto {
 
   export class TleFindDto {
     constructor(
-      targetTleDate: Date,
-      foundTleDate: Date,
-      tleDtoarray: TleDto[],
-      numOfData?: number,
+      noradId : number,
+      objectName : string,
+      targetTleDate: string,
+      currentDate: Date,
+      tleFirstLine : string,
+      tleSecondLine : string,
+      // tleDtoarray: TleDto[],
+      // numOfData?: number,
+      
     ) {
+      this.objectName = objectName;
+      this.noradId = noradId;
       this.targetTleDate = targetTleDate;
-      this.foundTleDate = foundTleDate;
-      this.numOfData = numOfData;
-      this.tles = tleDtoarray;
+      this.currentDate = currentDate;
+      this.tleFirstLine = tleFirstLine;
+      this.tleSecondLine = tleSecondLine;
+      // this.numOfData = numOfData;
+      // this.tles = tleDtoarray;
     }
-  
-    targetTleDate: Date;
-    foundTleDate: Date;
-    numOfData: number;
-    tles
+    noradId : number;
+    objectName : string;
+    targetTleDate: string;
+    currentDate: Date;
+    tleFirstLine : string;
+    tleSecondLine : string;
+    // numOfData: number;
+    // tles
   }

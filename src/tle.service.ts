@@ -1,23 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import axios from 'axios';
 import {  TleDto, TleGetDto, TleFindDto } from  '../dto/tle.dto';
 import { MongoClient } from 'mongodb';
 import { Tle, TleDocument} from '../schemas/tle.schema';
-
-
 @Injectable()
 export class TleService {
   private dbUri: string;
   private dbClient: MongoClient;
 
   constructor(@InjectModel(Tle.name) private tleModel: Model<TleDocument>) {
-    this.dbUri = 'mongodb://spacemap42:Voronoi1!@121.78.75.22:27017/?directConnection=true';
+    this.dbUri = 'mongodb://spacemap42:Voronoi1!@121.78.75.22:27017/';
     this.dbClient = new MongoClient(this.dbUri);
     
   }
-
+  
 
   async createTle(tleData: Tle): Promise<Tle> {
     const newTle = new this.tleModel(tleData);
@@ -97,7 +95,7 @@ export class TleService {
     try {
       const database = this.dbClient.db('kyuil-workspace');
       const collection = database.collection('tle');
-      await collection.deleteMany({});
+      // await collection.deleteMany({});
       // Transform the TLEDataDTO objects into the structure needed for your MongoDB documents
       const documents = tleDataList.map((tleData) => ({
         creationDate: tleData.date, 
@@ -116,22 +114,67 @@ export class TleService {
     }
   }
   
-  async findTleByNoradId(noradId: string): Promise<Tle> {
+  async findTleByNoradId(noradId: string): Promise<TleFindDto> {
     try {
       const noradIdInt = parseInt(noradId,10);
-      const tleDocument = await this.tleModel.findOne({ noradId: noradIdInt }).exec();
+      
+      console.log("Working on database:", this.tleModel.db.name);
+      console.log("Working on collection:", this.tleModel.collection.name); // 컬렉션 이름 로그 출력
+      const tleDocument = await this.tleModel.findOne({ noradId: noradIdInt });
+
+      // const tleDocument = await this.tleModel.findOne({ noradId: noradIdInt }).exec();
       if (!tleDocument) {
         return null;
       }
       // Tle 스키마 형식으로 변환
       console.log(tleDocument);
+      const tleData = new TleFindDto(
+        noradIdInt,
+        tleDocument.objectName,
+        tleDocument.creationDate.toISOString(),
+        new Date(),
+        tleDocument.tleFirstLine,
+        tleDocument.tleSecondLine
+      );
 
-      return tleDocument.toObject();
+      return tleData;
+      // return tleDocument.toObject();
     } catch (error) {
       throw new Error(`Error while fetching TLE with noradId ${noradId}: ${error.message}`);
     }
   }
- 
+
+  async findTleGreaterThanNoradId(noradId: string): Promise<TleFindDto[]> {
+    const noradIdInt = parseInt(noradId, 10);
+    const tleDocuments = await this.tleModel.find({ noradId: { $gte: noradIdInt } }).exec();
+
+    return tleDocuments.map((tleDocument) => new TleFindDto(
+      tleDocument.noradId,
+      tleDocument.objectName,
+      tleDocument.creationDate.toISOString(),
+      new Date(),
+      tleDocument.tleFirstLine,
+      tleDocument.tleSecondLine
+    ));
+  }
+
+  async findTleLessThanNoradId(noradId: string): Promise<TleFindDto[]> {
+    const noradIdInt = parseInt(noradId, 10);
+    const tleDocuments = await this.tleModel
+      .find({ noradId: { $lte: noradIdInt } })
+      .sort({ noradId: 'asc' }) 
+      .exec();
+
+    return tleDocuments.map((tleDocument) => new TleFindDto(
+      tleDocument.noradId,
+      tleDocument.objectName,
+      tleDocument.creationDate.toISOString(),
+      new Date(),
+      tleDocument.tleFirstLine,
+      tleDocument.tleSecondLine
+    ));
+  }
+
   async findAllTles(): Promise<Tle[]> {
     try {
       console.log(`Connecting to DB at: ${this.dbUri}`); // MongoDB 연결 URI 로깅
@@ -144,6 +187,55 @@ export class TleService {
     } catch (error) {
       console.error(`Error while fetching all TLEs: ${error.message}`);
       throw new Error(`Error while fetching all TLEs: ${error.message}`);
+    }
+  }
+
+  async deleteTleByNoradId(noradId: string): Promise<void> {
+    try {
+      const noradIdInt = parseInt(noradId, 10);
+      
+      // Delete documents with NORAD IDs less than or equal to the specified value
+      await this.tleModel.deleteMany({ noradId: noradIdInt  }).exec();
+      console.log(`delete noradId ${noradId}`)
+    } catch (error) {
+      throw new Error(`Error while deleting TLEs to noradId ${noradId}: ${error.message}`);
+    }
+  
+  }
+
+  async deleteTleLessThanNoradId(noradId: string): Promise<void> {
+    try {
+      const noradIdInt = parseInt(noradId, 10);
+      
+      // Delete documents with NORAD IDs less than or equal to the specified value
+      await this.tleModel.deleteMany({ noradId: { $lte: noradIdInt } }).exec();
+      console.log(`delete noradId ${noradId}`)
+    } catch (error) {
+      throw new Error(`Error while deleting TLEs less than or equal to noradId ${noradId}: ${error.message}`);
+    }
+  }
+
+  async deleteTleGreaterThanNoradId(noradId: string): Promise<void> {
+    try {
+      const noradIdInt = parseInt(noradId, 10);
+      
+      // Delete documents with NORAD IDs less than or equal to the specified value
+      await this.tleModel.deleteMany({ noradId: { $gte: noradIdInt } }).exec();
+      console.log(`delete noradId ${noradId}`)
+    } catch (error) {
+      throw new Error(`Error while deleting TLEs greater than or equal to noradId ${noradId}: ${error.message}`);
+    }
+  }
+
+  async deleteTleByDate(deletionStartDate: Date,deletionEndDate : Date): Promise<number> {
+    try {
+      // Delete documents with creationDate equal to the specified date
+      const result = await this.tleModel
+      .deleteMany({ creationDate: { $gte: deletionStartDate, $lte: deletionEndDate } })
+      .exec();
+      return result.deletedCount || 0;
+    } catch (error) {
+      throw new Error(`Error while deleting TLEs for date ${deletionStartDate.toISOString()}: ${error.message}`);
     }
   }
 }
